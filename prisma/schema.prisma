@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model InboundTask {
+  id              String   @id @default(cuid())
+  taskNo          String   @unique
+  productName     String
+  quantity        Int
+  batchNo         String
+  storageLocation String
+  status          String   @default("PENDING")
+  priority        String   @default("MEDIUM")
+  assignee        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  statusHistories StatusHistory[] @relation("InboundStatusHistory")
+  notifications   Notification[]  @relation("InboundNotifications")
+}
+
+model PickingTask {
+  id            String   @id @default(cuid())
+  taskNo        String   @unique
+  orderNo       String
+  zone          String
+  status        String   @default("PENDING")
+  priority      String   @default("MEDIUM")
+  assignee      String?
+  optimizedPath String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items          PickingItem[]
+  statusHistories StatusHistory[] @relation("PickingStatusHistory")
+  notifications   Notification[]  @relation("PickingNotifications")
+}
+
+model PickingItem {
+  id              String      @id @default(cuid())
+  pickingTaskId   String
+  productName     String
+  quantity        Int
+  storageLocation String
+  isPicked        Boolean     @default(false)
+  pickingTask     PickingTask @relation(fields: [pickingTaskId], references: [id], onDelete: Cascade)
+}
+
+model DeliveryTask {
+  id                String    @id @default(cuid())
+  taskNo            String    @unique
+  orderNo           String
+  courierName       String?
+  courierPhone      String?
+  deliveryRoute     String
+  estimatedDelivery DateTime?
+  status            String    @default("PENDING")
+  priority          String    @default("MEDIUM")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  statusHistories StatusHistory[] @relation("DeliveryStatusHistory")
+  notifications   Notification[]  @relation("DeliveryNotifications")
+}
+
+model StatusHistory {
+  id         String   @id @default(cuid())
+  taskId     String
+  taskType   String
+  fromStatus String
+  toStatus   String
+  operator   String
+  remark     String?
+  createdAt  DateTime @default(now())
+
+  inboundTask  InboundTask?  @relation("InboundStatusHistory", fields: [taskId], references: [id])
+  pickingTask  PickingTask?  @relation("PickingStatusHistory", fields: [taskId], references: [id])
+  deliveryTask DeliveryTask? @relation("DeliveryStatusHistory", fields: [taskId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  taskId    String
+  taskType  String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  inboundTask  InboundTask?  @relation("InboundNotifications", fields: [taskId], references: [id])
+  pickingTask  PickingTask?  @relation("PickingNotifications", fields: [taskId], references: [id])
+  deliveryTask DeliveryTask? @relation("DeliveryNotifications", fields: [taskId], references: [id])
+}
