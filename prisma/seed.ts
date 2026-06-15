@@ -298,16 +298,18 @@ async function main() {
   }
 
   for (const h of statusHistories) {
-    await prisma.statusHistory.create({
-      data: {
-        taskId: h.taskId,
-        taskType: h.taskType,
-        fromStatus: h.from,
-        toStatus: h.to,
-        operator: h.operator,
-        remark: h.remark,
-      },
-    });
+    const data: any = {
+      taskId: h.taskId,
+      taskType: h.taskType,
+      fromStatus: h.from,
+      toStatus: h.to,
+      operator: h.operator,
+      remark: h.remark,
+    };
+    if (h.taskType === "INBOUND") data.inboundTaskId = h.taskId;
+    if (h.taskType === "PICKING") data.pickingTaskId = h.taskId;
+    if (h.taskType === "DELIVERY") data.deliveryTaskId = h.taskId;
+    await prisma.statusHistory.create({ data });
   }
 
   console.log("🔔 创建通知记录...");
@@ -347,14 +349,16 @@ async function main() {
   }
 
   for (const n of notifications) {
-    await prisma.notification.create({
-      data: {
-        taskId: n.taskId,
-        taskType: n.taskType,
-        message: n.message,
-        isRead: Math.random() > 0.5,
-      },
-    });
+    const data: any = {
+      taskId: n.taskId,
+      taskType: n.taskType,
+      message: n.message,
+      isRead: Math.random() > 0.5,
+    };
+    if (n.taskType === "INBOUND") data.inboundTaskId = n.taskId;
+    if (n.taskType === "PICKING") data.pickingTaskId = n.taskId;
+    if (n.taskType === "DELIVERY") data.deliveryTaskId = n.taskId;
+    await prisma.notification.create({ data });
   }
 
   console.log("\n✅ 种子数据创建完成！");
