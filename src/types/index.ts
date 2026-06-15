@@ -90,6 +90,12 @@ export interface DashboardStats {
     priority: Priority
     createdAt: string
   }[]
+  weeklyTrend: {
+    date: string
+    inbound: number
+    picking: number
+    delivery: number
+  }[]
 }
 
 export interface ApiResponse<T> {

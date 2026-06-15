@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { LayoutDashboard, PackagePlus, ShoppingCart, Truck } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts'
 import { DashboardStats, TASK_TYPE_LABELS, STATUS_LABELS } from '@/types'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { PriorityBadge } from '@/components/ui/priority-badge'
@@ -69,6 +69,8 @@ export default function DashboardPage() {
     count: item.count,
   }))
 
+  const trendData = stats.weeklyTrend
+
   return (
     <div className="space-y-6">
       <div>
@@ -91,6 +93,22 @@ export default function DashboardPage() {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">近 7 天任务趋势</h2>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={trendData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" />
+            <YAxis allowDecimals={false} />
+            <Tooltip />
+            <Legend />
+            <Line type="monotone" dataKey="inbound" name="入库" stroke="#4c6ef5" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+            <Line type="monotone" dataKey="picking" name="拣货" stroke="#9775fa" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+            <Line type="monotone" dataKey="delivery" name="配送" stroke="#40c057" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">

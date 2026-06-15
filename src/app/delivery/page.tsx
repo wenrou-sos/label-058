@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Plus, Search, Eye, UserPlus, Printer, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { PriorityBadge } from '@/components/ui/priority-badge'
-import { formatDateTime } from '@/lib/utils'
+import { formatDateTime, calculateNewPage } from '@/lib/utils'
 import type { DeliveryTask, TaskStatus, Priority } from '@/types'
 import { STATUS_LABELS, PRIORITY_LABELS, COURIERS } from '@/types'
 

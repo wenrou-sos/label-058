@@ -1,7 +1,68 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 
+function getLast7Days(): Date[] {
+  const days: Date[] = []
+  const now = new Date()
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now)
+    d.setDate(now.getDate() - i)
+    d.setHours(0, 0, 0, 0)
+    days.push(d)
+  }
+  return days
+}
+
+function formatDateKey(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function formatDisplayDate(date: Date): string {
+  return `${date.getMonth() + 1}/${date.getDate()}`
+}
+
+async function getTaskCountsByDate(startDate: Date, endDate: Date, taskType: 'inbound' | 'picking' | 'delivery') {
+  const gte = new Date(startDate)
+  gte.setHours(0, 0, 0, 0)
+  const lt = new Date(endDate)
+  lt.setDate(lt.getDate() + 1)
+  lt.setHours(0, 0, 0, 0)
+
+  let records: { createdAt: Date }[] = []
+
+  if (taskType === 'inbound') {
+    records = await prisma.inboundTask.findMany({
+      where: { createdAt: { gte, lt } },
+      select: { createdAt: true },
+    })
+  } else if (taskType === 'picking') {
+    records = await prisma.pickingTask.findMany({
+      where: { createdAt: { gte, lt } },
+      select: { createdAt: true },
+    })
+  } else {
+    records = await prisma.deliveryTask.findMany({
+      where: { createdAt: { gte, lt } },
+      select: { createdAt: true },
+    })
+  }
+
+  const map: Record<string, number> = {}
+  for (const r of records) {
+    const key = formatDateKey(new Date(r.createdAt))
+    map[key] = (map[key] || 0) + 1
+  }
+  return map
+}
+
 export async function GET() {
+  const days = getLast7Days()
+  const startDate = days[0]
+  const endDate = days[days.length - 1]
+
   const [
     inboundCount,
     pickingCount,
@@ -18,6 +79,9 @@ export async function GET() {
     recentInbound,
     recentPicking,
     recentDelivery,
+    inboundByDate,
+    pickingByDate,
+    deliveryByDate,
   ] = await Promise.all([
     prisma.inboundTask.count(),
     prisma.pickingTask.count(),
@@ -46,6 +110,9 @@ export async function GET() {
       take: 5,
       select: { id: true, taskNo: true, status: true, priority: true, createdAt: true },
     }),
+    getTaskCountsByDate(startDate, endDate, 'inbound'),
+    getTaskCountsByDate(startDate, endDate, 'picking'),
+    getTaskCountsByDate(startDate, endDate, 'delivery'),
   ])
 
   const statusMap: Record<string, number> = {}
@@ -65,6 +132,16 @@ export async function GET() {
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 10)
 
+  const weeklyTrend = days.map((d) => {
+    const key = formatDateKey(d)
+    return {
+      date: formatDisplayDate(d),
+      inbound: inboundByDate[key] || 0,
+      picking: pickingByDate[key] || 0,
+      delivery: deliveryByDate[key] || 0,
+    }
+  })
+
   return NextResponse.json({
     data: {
       inboundCount,
@@ -76,6 +153,7 @@ export async function GET() {
       deliveringCount,
       statusDistribution,
       recentTasks,
+      weeklyTrend,
     },
   })
 }
