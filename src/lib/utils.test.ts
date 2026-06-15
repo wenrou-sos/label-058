@@ -5,6 +5,7 @@ import {
   formatDate,
   formatDateTime,
   getStatusDotColor,
+  calculateNewPage,
 } from '@/lib/utils'
 import {
   STATUS_LABELS,
@@ -150,5 +151,41 @@ describe('Constants', () => {
 
   it('should have non-empty couriers', () => {
     expect(COURIERS.length).toBeGreaterThan(0)
+  })
+})
+
+describe('calculateNewPage', () => {
+  const PAGE_SIZE = 10
+
+  it('should return current page when nothing is deleted', () => {
+    expect(calculateNewPage(2, 25, 0, PAGE_SIZE)).toBe(2)
+    expect(calculateNewPage(2, 25, -5, PAGE_SIZE)).toBe(2)
+  })
+
+  it('should stay on the same page when current page still has data after deletion', () => {
+    expect(calculateNewPage(1, 25, 5, PAGE_SIZE)).toBe(1)
+    expect(calculateNewPage(2, 25, 5, PAGE_SIZE)).toBe(2)
+  })
+
+  it('should go back one page when last page becomes empty after deletion', () => {
+    expect(calculateNewPage(3, 25, 6, PAGE_SIZE)).toBe(2)
+  })
+
+  it('should jump to the correct page when multiple pages are emptied', () => {
+    expect(calculateNewPage(3, 25, 15, PAGE_SIZE)).toBe(1)
+  })
+
+  it('should go to page 1 when all records are deleted', () => {
+    expect(calculateNewPage(3, 25, 25, PAGE_SIZE)).toBe(1)
+    expect(calculateNewPage(1, 5, 5, PAGE_SIZE)).toBe(1)
+  })
+
+  it('should handle exact page boundary deletion', () => {
+    expect(calculateNewPage(2, 20, 10, PAGE_SIZE)).toBe(1)
+    expect(calculateNewPage(2, 20, 11, PAGE_SIZE)).toBe(1)
+  })
+
+  it('should handle when newTotalPages equals currentPage', () => {
+    expect(calculateNewPage(2, 25, 6, PAGE_SIZE)).toBe(2)
   })
 })

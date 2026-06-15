@@ -128,13 +128,17 @@ export default function DeliveryPage() {
       if (res.ok && data.data) {
         const { successCount, failCount } = data.data
         if (successCount > 0) {
+          const newPage = calculateNewPage(page, total, successCount, pageSize)
+          if (newPage !== page) {
+            setPage(newPage)
+          }
           alert(`删除成功：${successCount} 条${failCount > 0 ? `，失败：${failCount} 条` : ''}`)
         } else {
           alert(`删除失败：${failCount} 条`)
         }
         setShowDeleteConfirm(false)
         setSelectedIds(new Set())
-        fetchTasks()
+        setTimeout(() => fetchTasks(), 0)
       } else {
         alert(data.error || '删除失败，请稍后重试')
       }

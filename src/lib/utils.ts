@@ -40,3 +40,18 @@ export function getStatusDotColor(status: string): string {
   }
   return map[status] || 'bg-gray-400'
 }
+
+export function calculateNewPage(
+  currentPage: number,
+  currentTotal: number,
+  deletedCount: number,
+  pageSize: number,
+): number {
+  if (deletedCount <= 0) return currentPage
+  const newTotal = Math.max(0, currentTotal - deletedCount)
+  const newTotalPages = Math.max(1, Math.ceil(newTotal / pageSize))
+  if (currentPage > newTotalPages) {
+    return newTotalPages
+  }
+  return currentPage
+}

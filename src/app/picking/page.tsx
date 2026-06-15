@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Plus, Search, Eye, UserPlus, Play, CheckCircle, XCircle, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { PriorityBadge } from '@/components/ui/priority-badge'
-import { formatDateTime } from '@/lib/utils'
+import { formatDateTime, calculateNewPage } from '@/lib/utils'
 import type { PickingTask, TaskStatus, Priority } from '@/types'
 import { STATUS_LABELS, PRIORITY_LABELS, ZONES, ASSIGNEES } from '@/types'
 
@@ -88,13 +88,18 @@ export default function PickingPage() {
       if (res.ok && data.data) {
         const { successCount, failCount } = data.data
         if (successCount > 0) {
+          const newTotal = Math.max(0, total - successCount)
+          const newTotalPages = Math.max(1, Math.ceil(newTotal / pageSize))
+          if (page > newTotalPages) {
+            setPage(newTotalPages)
+          }
           alert(`删除成功：${successCount} 条${failCount > 0 ? `，失败：${failCount} 条` : ''}`)
         } else {
           alert(`删除失败：${failCount} 条`)
         }
         setShowDeleteConfirm(false)
         setSelectedIds(new Set())
-        fetchTasks()
+        setTimeout(() => fetchTasks(), 0)
       } else {
         alert(data.error || '删除失败，请稍后重试')
       }
