@@ -1,28 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import { NextResponse } from 'next/server'
+import { getLast7Days, formatDateKey, buildWeeklyTrend } from '@/lib/utils'
 
-function getLast7Days(): Date[] {
-  const days: Date[] = []
-  const now = new Date()
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(now)
-    d.setDate(now.getDate() - i)
-    d.setHours(0, 0, 0, 0)
-    days.push(d)
-  }
-  return days
-}
-
-function formatDateKey(date: Date): string {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
-
-function formatDisplayDate(date: Date): string {
-  return `${date.getMonth() + 1}/${date.getDate()}`
-}
+export const dynamic = 'force-dynamic'
 
 async function getTaskCountsByDate(startDate: Date, endDate: Date, taskType: 'inbound' | 'picking' | 'delivery') {
   const gte = new Date(startDate)
@@ -62,6 +42,7 @@ export async function GET() {
   const days = getLast7Days()
   const startDate = days[0]
   const endDate = days[days.length - 1]
+  const now = new Date()
 
   const [
     inboundCount,
@@ -132,15 +113,7 @@ export async function GET() {
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 10)
 
-  const weeklyTrend = days.map((d) => {
-    const key = formatDateKey(d)
-    return {
-      date: formatDisplayDate(d),
-      inbound: inboundByDate[key] || 0,
-      picking: pickingByDate[key] || 0,
-      delivery: deliveryByDate[key] || 0,
-    }
-  })
+  const weeklyTrend = buildWeeklyTrend(now, inboundByDate, pickingByDate, deliveryByDate)
 
   return NextResponse.json({
     data: {

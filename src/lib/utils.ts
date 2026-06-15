@@ -55,3 +55,50 @@ export function calculateNewPage(
   }
   return currentPage
 }
+
+export function getLast7Days(now: Date = new Date()): Date[] {
+  const days: Date[] = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now)
+    d.setDate(now.getDate() - i)
+    d.setHours(0, 0, 0, 0)
+    days.push(d)
+  }
+  return days
+}
+
+export function formatDateKey(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+export function formatDisplayDate(date: Date): string {
+  return `${date.getMonth() + 1}/${date.getDate()}`
+}
+
+export interface DailyTrendPoint {
+  date: string
+  inbound: number
+  picking: number
+  delivery: number
+}
+
+export function buildWeeklyTrend(
+  now: Date,
+  inboundByDate: Record<string, number>,
+  pickingByDate: Record<string, number>,
+  deliveryByDate: Record<string, number>,
+): DailyTrendPoint[] {
+  const days = getLast7Days(now)
+  return days.map((d) => {
+    const key = formatDateKey(d)
+    return {
+      date: formatDisplayDate(d),
+      inbound: inboundByDate[key] || 0,
+      picking: pickingByDate[key] || 0,
+      delivery: deliveryByDate[key] || 0,
+    }
+  })
+}
