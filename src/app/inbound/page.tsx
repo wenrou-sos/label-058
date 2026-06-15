@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, Upload } from 'lucide-react'
+import { Plus, Search, Upload, Trash2 } from 'lucide-react'
 import { InboundTask, TaskStatus, Priority, STATUS_LABELS, PRIORITY_LABELS } from '@/types'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { PriorityBadge } from '@/components/ui/priority-badge'
@@ -40,6 +40,10 @@ export default function InboundListPage() {
   ])
   const [batchSubmitting, setBatchSubmitting] = useState(false)
 
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
   const fetchTasks = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams()
@@ -60,6 +64,27 @@ export default function InboundListPage() {
     fetchTasks()
   }, [fetchTasks])
 
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [page, statusFilter, priorityFilter, search])
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === tasks.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(tasks.map((t) => t.id)))
+    }
+  }
+
   const handleApprove = async (id: string) => {
     await fetch(`/api/inbound/${id}/status`, {
       method: 'PATCH',
@@ -67,6 +92,34 @@ export default function InboundListPage() {
       body: JSON.stringify({ toStatus: 'IN_PROGRESS', operator: '管理员', remark: '审核通过' }),
     })
     fetchTasks()
+  }
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.size === 0) return
+    setDeleteLoading(true)
+    try {
+      const res = await fetch('/api/inbound/batch-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      })
+      const data = await res.json()
+      if (res.ok && data.data) {
+        const { successCount, failCount } = data.data
+        if (successCount > 0) {
+          alert(`删除成功：${successCount} 条${failCount > 0 ? `，失败：${failCount} 条` : ''}`)
+        } else {
+          alert(`删除失败：${failCount} 条`)
+        }
+        setShowDeleteConfirm(false)
+        setSelectedIds(new Set())
+        fetchTasks()
+      } else {
+        alert(data.error || '删除失败，请稍后重试')
+      }
+    } finally {
+      setDeleteLoading(false)
+    }
   }
 
   const handleBatchImport = async () => {
@@ -117,6 +170,14 @@ export default function InboundListPage() {
           <p className="text-gray-500 mt-1">管理所有入库任务</p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={selectedIds.size === 0}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Trash2 className="w-4 h-4" />
+            批量删除 ({selectedIds.size})
+          </button>
           <button
             onClick={() => setShowBatchModal(true)}
             className="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors"
@@ -180,6 +241,14 @@ export default function InboundListPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="text-left py-3 px-4">
+                      <input
+                        type="checkbox"
+                        checked={tasks.length > 0 && selectedIds.size === tasks.length}
+                        onChange={toggleSelectAll}
+                        className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                      />
+                    </th>
                     <th className="text-left py-3 px-4 font-medium text-gray-500">任务编号</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-500">商品名称</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-500">数量</th>
@@ -195,6 +264,14 @@ export default function InboundListPage() {
                 <tbody>
                   {tasks.map((task) => (
                     <tr key={task.id} className="border-b border-gray-50 hover:bg-gray-50">
+                      <td className="py-3 px-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(task.id)}
+                          onChange={() => toggleSelect(task.id)}
+                          className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                        />
+                      </td>
                       <td className="py-3 px-4 font-mono text-primary-600">{task.taskNo}</td>
                       <td className="py-3 px-4">{task.productName}</td>
                       <td className="py-3 px-4">{task.quantity}</td>
@@ -232,7 +309,7 @@ export default function InboundListPage() {
                   ))}
                   {tasks.length === 0 && (
                     <tr>
-                      <td colSpan={10} className="py-12 text-center text-gray-400">暂无数据</td>
+                      <td colSpan={11} className="py-12 text-center text-gray-400">暂无数据</td>
                     </tr>
                   )}
                 </tbody>
@@ -265,6 +342,44 @@ export default function InboundListPage() {
           </>
         )}
       </div>
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => !deleteLoading && setShowDeleteConfirm(false)}>
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">确认删除</h2>
+            <p className="mb-4 text-sm text-slate-600">
+              确定删除选中的 <span className="font-semibold text-red-600">{selectedIds.size}</span> 条入库任务吗？
+            </p>
+            <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 p-3">
+              {tasks.filter((t) => selectedIds.has(t.id)).map((t) => (
+                <div key={t.id} className="flex items-center justify-between border-b border-slate-100 py-2 last:border-0">
+                  <span className="text-sm font-medium text-slate-700">{t.taskNo}</span>
+                  <span className="text-sm text-slate-500">{t.productName}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-slate-400">
+              关联的状态历史和通知将一并删除，此操作不可恢复。
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleteLoading}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleBatchDelete}
+                disabled={deleteLoading}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteLoading ? '删除中...' : `删除 ${selectedIds.size} 条`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showBatchModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowBatchModal(false)}>

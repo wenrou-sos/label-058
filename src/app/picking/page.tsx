@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, Eye, UserPlus, Play, CheckCircle, XCircle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Search, Eye, UserPlus, Play, CheckCircle, XCircle, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { PriorityBadge } from '@/components/ui/priority-badge'
 import { formatDateTime } from '@/lib/utils'
@@ -29,6 +29,10 @@ export default function PickingPage() {
   const [showStatusModal, setShowStatusModal] = useState<string | null>(null)
   const [statusForm, setStatusForm] = useState({ toStatus: '' as TaskStatus, operator: '', remark: '' })
 
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
   const fetchTasks = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams()
@@ -49,6 +53,55 @@ export default function PickingPage() {
   useEffect(() => {
     fetchTasks()
   }, [fetchTasks])
+
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [page, statusFilter, priorityFilter, zoneFilter, search])
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === tasks.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(tasks.map((t) => t.id)))
+    }
+  }
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.size === 0) return
+    setDeleteLoading(true)
+    try {
+      const res = await fetch('/api/picking/batch-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      })
+      const data = await res.json()
+      if (res.ok && data.data) {
+        const { successCount, failCount } = data.data
+        if (successCount > 0) {
+          alert(`删除成功：${successCount} 条${failCount > 0 ? `，失败：${failCount} 条` : ''}`)
+        } else {
+          alert(`删除失败：${failCount} 条`)
+        }
+        setShowDeleteConfirm(false)
+        setSelectedIds(new Set())
+        fetchTasks()
+      } else {
+        alert(data.error || '删除失败，请稍后重试')
+      }
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
 
   const totalPages = Math.ceil(total / pageSize)
 
@@ -181,13 +234,23 @@ export default function PickingPage() {
             ))}
           </select>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700"
-        >
-          <Plus className="h-4 w-4" />
-          生成拣货任务
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={selectedIds.size === 0}
+            className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Trash2 className="h-4 w-4" />
+            批量删除 ({selectedIds.size})
+          </button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700"
+          >
+            <Plus className="h-4 w-4" />
+            生成拣货任务
+          </button>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
@@ -195,6 +258,14 @@ export default function PickingPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50">
+                <th className="px-4 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={tasks.length > 0 && selectedIds.size === tasks.length}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                  />
+                </th>
                 <th className="px-4 py-3 text-left font-medium text-slate-600">任务编号</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-600">订单号</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-600">区域</th>
@@ -210,15 +281,23 @@ export default function PickingPage() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-slate-400">加载中...</td>
+                  <td colSpan={11} className="px-4 py-12 text-center text-slate-400">加载中...</td>
                 </tr>
               ) : tasks.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-12 text-center text-slate-400">暂无拣货任务</td>
+                  <td colSpan={11} className="px-4 py-12 text-center text-slate-400">暂无拣货任务</td>
                 </tr>
               ) : (
                 tasks.map((task) => (
                   <tr key={task.id} className="transition-colors hover:bg-slate-50">
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(task.id)}
+                        onChange={() => toggleSelect(task.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                      />
+                    </td>
                     <td className="px-4 py-3 font-medium text-primary-600">
                       <Link href={`/picking/${task.id}`} className="hover:underline">{task.taskNo}</Link>
                     </td>
@@ -491,6 +570,44 @@ export default function PickingPage() {
                 className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 disabled:opacity-50"
               >
                 确认
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => !deleteLoading && setShowDeleteConfirm(false)}>
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">确认删除</h2>
+            <p className="mb-4 text-sm text-slate-600">
+              确定删除选中的 <span className="font-semibold text-red-600">{selectedIds.size}</span> 条拣货任务吗？
+            </p>
+            <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 p-3">
+              {tasks.filter((t) => selectedIds.has(t.id)).map((t) => (
+                <div key={t.id} className="flex items-center justify-between border-b border-slate-100 py-2 last:border-0">
+                  <span className="text-sm font-medium text-slate-700">{t.taskNo}</span>
+                  <span className="text-sm text-slate-500">{t.orderNo}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-slate-400">
+              关联的拣货明细、状态历史和通知将一并删除，此操作不可恢复。
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleteLoading}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleBatchDelete}
+                disabled={deleteLoading}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteLoading ? '删除中...' : `删除 ${selectedIds.size} 条`}
               </button>
             </div>
           </div>

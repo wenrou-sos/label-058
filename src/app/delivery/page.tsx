@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Eye, UserPlus, Printer, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Search, Eye, UserPlus, Printer, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { PriorityBadge } from '@/components/ui/priority-badge'
 import { formatDateTime } from '@/lib/utils'
@@ -25,6 +25,9 @@ export default function DeliveryPage() {
   const [showAssignModal, setShowAssignModal] = useState<string | null>(null)
   const [assignForm, setAssignForm] = useState({ courierName: '', courierPhone: '' })
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+
   const fetchTasks = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams()
@@ -44,6 +47,10 @@ export default function DeliveryPage() {
   useEffect(() => {
     fetchTasks()
   }, [fetchTasks])
+
+  useEffect(() => {
+    setSelectedIds(new Set())
+  }, [page, statusFilter, priorityFilter, search])
 
   const totalPages = Math.ceil(total / pageSize)
 
@@ -108,6 +115,34 @@ export default function DeliveryPage() {
     setShowPrintDialog(false)
   }
 
+  const handleBatchDelete = async () => {
+    if (selectedIds.size === 0) return
+    setDeleteLoading(true)
+    try {
+      const res = await fetch('/api/delivery/batch-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      })
+      const data = await res.json()
+      if (res.ok && data.data) {
+        const { successCount, failCount } = data.data
+        if (successCount > 0) {
+          alert(`删除成功：${successCount} 条${failCount > 0 ? `，失败：${failCount} 条` : ''}`)
+        } else {
+          alert(`删除失败：${failCount} 条`)
+        }
+        setShowDeleteConfirm(false)
+        setSelectedIds(new Set())
+        fetchTasks()
+      } else {
+        alert(data.error || '删除失败，请稍后重试')
+      }
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -151,6 +186,14 @@ export default function DeliveryPage() {
           >
             <Printer className="h-4 w-4" />
             批量打印 ({selectedIds.size})
+          </button>
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            disabled={selectedIds.size === 0}
+            className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Trash2 className="h-4 w-4" />
+            批量删除 ({selectedIds.size})
           </button>
           <Link
             href="/delivery/create"
@@ -347,6 +390,44 @@ export default function DeliveryPage() {
               >
                 <Printer className="h-4 w-4" />
                 打印
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => !deleteLoading && setShowDeleteConfirm(false)}>
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="mb-4 text-lg font-semibold text-slate-900">确认删除</h2>
+            <p className="mb-4 text-sm text-slate-600">
+              确定删除选中的 <span className="font-semibold text-red-600">{selectedIds.size}</span> 条配送任务吗？
+            </p>
+            <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 p-3">
+              {tasks.filter((t) => selectedIds.has(t.id)).map((t) => (
+                <div key={t.id} className="flex items-center justify-between border-b border-slate-100 py-2 last:border-0">
+                  <span className="text-sm font-medium text-slate-700">{t.taskNo}</span>
+                  <span className="text-sm text-slate-500">{t.orderNo}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-slate-400">
+              关联的状态历史和通知将一并删除，此操作不可恢复。
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleteLoading}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleBatchDelete}
+                disabled={deleteLoading}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteLoading ? '删除中...' : `删除 ${selectedIds.size} 条`}
               </button>
             </div>
           </div>
