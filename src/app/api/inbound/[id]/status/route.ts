@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { STATUS_LABELS, TASK_TYPE_LABELS } from '@/types'
+import { handleTaskStatusChange } from '@/lib/task-flow'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function PATCH(
@@ -53,7 +54,15 @@ export async function PATCH(
       return updated
     })
 
-    return NextResponse.json({ data: result })
+    let generatedTask = null
+    if (toStatus === 'COMPLETED') {
+      generatedTask = await handleTaskStatusChange(prisma, 'INBOUND', params.id, toStatus)
+    }
+
+    return NextResponse.json({
+      data: result,
+      generatedTask,
+    })
   } catch (error) {
     console.error('入库状态更新失败:', error)
     return NextResponse.json(

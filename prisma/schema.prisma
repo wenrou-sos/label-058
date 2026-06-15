@@ -17,8 +17,11 @@ model InboundTask {
   status          String   @default("PENDING")
   priority        String   @default("MEDIUM")
   assignee        String?
+  orderNo         String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  generatedPickingTasks PickingTask[] @relation("InboundToPicking")
 
   statusHistories StatusHistory[] @relation("InboundStatusHistory")
   notifications   Notification[]  @relation("InboundNotifications")
@@ -35,6 +38,11 @@ model PickingTask {
   optimizedPath String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  sourceInboundTaskId String?
+  sourceInboundTask   InboundTask? @relation("InboundToPicking", fields: [sourceInboundTaskId], references: [id])
+
+  generatedDeliveryTasks DeliveryTask[] @relation("PickingToDelivery")
 
   items          PickingItem[]
   statusHistories StatusHistory[] @relation("PickingStatusHistory")
@@ -63,6 +71,9 @@ model DeliveryTask {
   priority          String    @default("MEDIUM")
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
+
+  sourcePickingTaskId String?
+  sourcePickingTask   PickingTask? @relation("PickingToDelivery", fields: [sourcePickingTaskId], references: [id])
 
   statusHistories StatusHistory[] @relation("DeliveryStatusHistory")
   notifications   Notification[]  @relation("DeliveryNotifications")

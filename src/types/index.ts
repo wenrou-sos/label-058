@@ -12,6 +12,7 @@ export interface InboundTask {
   status: TaskStatus
   priority: Priority
   assignee: string | null
+  orderNo: string | null
   createdAt: string
   updatedAt: string
 }
@@ -25,6 +26,7 @@ export interface PickingTask {
   priority: Priority
   assignee: string | null
   optimizedPath: string | null
+  sourceInboundTaskId: string | null
   items: PickingItem[]
   createdAt: string
   updatedAt: string
@@ -49,6 +51,7 @@ export interface DeliveryTask {
   estimatedDelivery: string | null
   status: TaskStatus
   priority: Priority
+  sourcePickingTaskId: string | null
   createdAt: string
   updatedAt: string
 }
