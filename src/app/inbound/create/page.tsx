@@ -3,9 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { LOCATIONS, ASSIGNEES, PRIORITY_LABELS, Priority } from '@/types'
+import { useStatsStore } from '@/store/stats-store'
 
 export default function CreateInboundPage() {
   const router = useRouter()
+  const invalidateStats = useStatsStore((s) => s.invalidateStats)
   const [submitting, setSubmitting] = useState(false)
   const [form, setForm] = useState({
     productName: '',
@@ -36,6 +38,7 @@ export default function CreateInboundPage() {
       })
 
       if (res.ok) {
+        invalidateStats()
         router.push('/inbound')
       }
     } finally {

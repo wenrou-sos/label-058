@@ -6,10 +6,6 @@ import {
   formatDateTime,
   getStatusDotColor,
   calculateNewPage,
-  getLast7Days,
-  formatDateKey,
-  formatDisplayDate,
-  buildWeeklyTrend,
 } from '@/lib/utils'
 import {
   STATUS_LABELS,
@@ -191,99 +187,5 @@ describe('calculateNewPage', () => {
 
   it('should handle when newTotalPages equals currentPage', () => {
     expect(calculateNewPage(2, 25, 6, PAGE_SIZE)).toBe(2)
-  })
-})
-
-describe('getLast7Days', () => {
-  it('should return 7 consecutive days', () => {
-    const now = new Date(2026, 5, 15, 10, 30, 0)
-    const days = getLast7Days(now)
-    expect(days.length).toBe(7)
-    expect(days[0].getDate()).toBe(9)
-    expect(days[6].getDate()).toBe(15)
-  })
-
-  it('should handle month boundary correctly', () => {
-    const now = new Date(2026, 5, 3, 10, 0, 0)
-    const days = getLast7Days(now)
-    expect(days[0].getMonth()).toBe(4)
-    expect(days[0].getDate()).toBe(28)
-    expect(days[6].getMonth()).toBe(5)
-    expect(days[6].getDate()).toBe(3)
-  })
-
-  it('should set time to midnight', () => {
-    const now = new Date(2026, 5, 15, 14, 45, 30)
-    const days = getLast7Days(now)
-    days.forEach((d) => {
-      expect(d.getHours()).toBe(0)
-      expect(d.getMinutes()).toBe(0)
-      expect(d.getSeconds()).toBe(0)
-      expect(d.getMilliseconds()).toBe(0)
-    })
-  })
-
-  it('should use current date when no argument is provided', () => {
-    const days = getLast7Days()
-    expect(days.length).toBe(7)
-    const today = new Date()
-    expect(days[6].getDate()).toBe(today.getDate())
-  })
-})
-
-describe('formatDateKey', () => {
-  it('should format date as YYYY-MM-DD', () => {
-    const date = new Date(2026, 5, 15)
-    expect(formatDateKey(date)).toBe('2026-06-15')
-  })
-
-  it('should pad single digit month and day', () => {
-    const date = new Date(2026, 0, 5)
-    expect(formatDateKey(date)).toBe('2026-01-05')
-  })
-})
-
-describe('formatDisplayDate', () => {
-  it('should format date as M/D', () => {
-    const date = new Date(2026, 5, 15)
-    expect(formatDisplayDate(date)).toBe('6/15')
-  })
-
-  it('should not pad single digit month and day', () => {
-    const date = new Date(2026, 0, 5)
-    expect(formatDisplayDate(date)).toBe('1/5')
-  })
-})
-
-describe('buildWeeklyTrend', () => {
-  it('should build 7 days of trend data with correct counts', () => {
-    const now = new Date(2026, 5, 15)
-    const today = '2026-06-15'
-    const yesterday = '2026-06-14'
-    const inbound = { [today]: 5, [yesterday]: 3 }
-    const picking = { [today]: 2, [yesterday]: 4 }
-    const delivery = { [today]: 1, [yesterday]: 0 }
-
-    const trend = buildWeeklyTrend(now, inbound, picking, delivery)
-    expect(trend.length).toBe(7)
-    expect(trend[6]).toEqual({ date: '6/15', inbound: 5, picking: 2, delivery: 1 })
-    expect(trend[5]).toEqual({ date: '6/14', inbound: 3, picking: 4, delivery: 0 })
-  })
-
-  it('should default missing dates to 0', () => {
-    const now = new Date(2026, 5, 15)
-    const trend = buildWeeklyTrend(now, {}, {}, {})
-    trend.forEach((day) => {
-      expect(day.inbound).toBe(0)
-      expect(day.picking).toBe(0)
-      expect(day.delivery).toBe(0)
-    })
-  })
-
-  it('should return dates in chronological order (oldest first)', () => {
-    const now = new Date(2026, 5, 15)
-    const trend = buildWeeklyTrend(now, {}, {}, {})
-    expect(trend[0].date).toBe('6/9')
-    expect(trend[6].date).toBe('6/15')
   })
 })

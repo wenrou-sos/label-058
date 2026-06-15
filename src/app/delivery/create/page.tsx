@@ -3,11 +3,13 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { PRIORITY_LABELS, Priority, COURIERS, ASSIGNEES } from '@/types'
+import { useStatsStore } from '@/store/stats-store'
 
 const DELIVERY_ROUTES = ['上海浦东仓库→杭州分拨中心', '苏州工业园→南京配送站', '无锡物流园→合肥中转站', '昆山仓储中心→宁波配送点', '上海嘉定仓→嘉兴物流站', '常州集散中心→扬州配送点']
 
 export default function CreateDeliveryPage() {
   const router = useRouter()
+  const invalidateStats = useStatsStore((s) => s.invalidateStats)
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     orderNo: '',
@@ -38,6 +40,7 @@ export default function CreateDeliveryPage() {
         body: JSON.stringify(body),
       })
       if (res.ok) {
+        invalidateStats()
         router.push('/delivery')
       }
     } finally {

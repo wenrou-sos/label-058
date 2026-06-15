@@ -1,3 +1,11 @@
+interface LoadingSkeletonProps {
+  className?: string
+}
+
+export function LoadingSkeleton({ className = '' }: LoadingSkeletonProps) {
+  return <div className={`animate-pulse bg-gray-200 rounded ${className}`} />
+}
+
 export function TableSkeleton({ rows = 5 }: { rows?: number }) {
   return (
     <div className="card overflow-hidden">

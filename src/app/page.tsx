@@ -1,61 +1,56 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect } from 'react'
 import { LayoutDashboard, PackagePlus, ShoppingCart, Truck, RefreshCw } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts'
-import { DashboardStats, TASK_TYPE_LABELS, STATUS_LABELS } from '@/types'
+import { TASK_TYPE_LABELS, STATUS_LABELS } from '@/types'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { PriorityBadge } from '@/components/ui/priority-badge'
 import { formatDateTime } from '@/lib/utils'
+import { useStatsStore } from '@/store/stats-store'
+import { LoadingSkeleton } from '@/components/ui/loading-skeleton'
+
+const POLL_INTERVAL = 15000
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
-
-  const loadStats = useCallback(async (showRefreshing = false) => {
-    if (showRefreshing) setRefreshing(true)
-    try {
-      const res = await fetch('/api/stats')
-      const json = await res.json()
-      setStats(json.data)
-      setLastUpdated(new Date())
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }, [])
+  const { stats, loading, error, fetchStats } = useStatsStore()
 
   useEffect(() => {
-    loadStats()
-  }, [loadStats])
+    fetchStats(true)
 
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        loadStats()
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibility)
-    return () => document.removeEventListener('visibilitychange', handleVisibility)
-  }, [loadStats])
-
-  useEffect(() => {
     const interval = setInterval(() => {
-      loadStats()
-    }, 60000)
-    return () => clearInterval(interval)
-  }, [loadStats])
+      fetchStats(false)
+    }, POLL_INTERVAL)
 
-  const handleRefresh = () => {
-    loadStats(true)
+    return () => clearInterval(interval)
+  }, [fetchStats])
+
+  if (loading && !stats) {
+    return (
+      <div className="space-y-6">
+        <LoadingSkeleton className="h-10 w-48" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <LoadingSkeleton key={i} className="h-28 rounded-xl" />
+          ))}
+        </div>
+        <LoadingSkeleton className="h-80 rounded-xl" />
+        <LoadingSkeleton className="h-80 rounded-xl" />
+      </div>
+    )
   }
 
-  if (loading) {
+  if (error && !stats) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">加载中...</div>
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <div className="text-gray-500">加载失败：{error}</div>
+        <button
+          onClick={() => fetchStats(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-accent-500 text-white rounded-lg text-sm hover:bg-accent-600 transition-colors"
+        >
+          <RefreshCw className="w-4 h-4" />
+          重试
+        </button>
       </div>
     )
   }
@@ -109,22 +104,15 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">工作台</h1>
-          <div className="flex items-center gap-3 mt-1">
-            <p className="text-gray-500">仓库物流管理概览</p>
-            {lastUpdated && (
-              <span className="text-xs text-gray-400">
-                · 最后更新：{formatDateTime(lastUpdated)}
-              </span>
-            )}
-          </div>
+          <p className="text-gray-500 mt-1">仓库物流管理概览</p>
         </div>
         <button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={() => fetchStats(true)}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
         >
-          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-          {refreshing ? '刷新中...' : '刷新数据'}
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? '刷新中...' : '刷新数据'}
         </button>
       </div>
 
